@@ -15,11 +15,28 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["user_type"] !== "admin") {
 if (isset($_POST['delete_book'])) {
     $book_id = $_POST['book_id'];
     
-    // Delete the book
-    $sql = "DELETE FROM books WHERE id = ?";
-    if ($stmt = mysqli_prepare($conn, $sql)) {
-        mysqli_stmt_bind_param($stmt, "i", $book_id);
-        mysqli_stmt_execute($stmt);
+    // Check if book has associated order items
+    $check_sql = "SELECT COUNT(*) as count FROM order_items WHERE book_id = ?";
+    if ($check_stmt = mysqli_prepare($conn, $check_sql)) {
+        mysqli_stmt_bind_param($check_stmt, "i", $book_id);
+        mysqli_stmt_execute($check_stmt);
+        $result = mysqli_stmt_get_result($check_stmt);
+        $row = mysqli_fetch_assoc($result);
+        
+        if ($row['count'] > 0) {
+            echo '<div class="alert alert-danger">Cannot delete this book because it has been ordered by customers. Please archive it instead.</div>';
+        } else {
+            // Delete the book if no order items exist
+            $sql = "DELETE FROM books WHERE id = ?";
+            if ($stmt = mysqli_prepare($conn, $sql)) {
+                mysqli_stmt_bind_param($stmt, "i", $book_id);
+                if (mysqli_stmt_execute($stmt)) {
+                    echo '<div class="alert alert-success">Book deleted successfully.</div>';
+                } else {
+                    echo '<div class="alert alert-danger">Error deleting book.</div>';
+                }
+            }
+        }
     }
 }
 

@@ -40,19 +40,27 @@ if ($stmt = mysqli_prepare($conn, $sql)) {
     $result = mysqli_stmt_get_result($stmt);
     
     if (mysqli_num_rows($result) > 0) {
-        echo json_encode(['success' => false, 'message' => 'Book is already in your wishlist']);
-        exit;
-    }
-}
-
-// Add to wishlist
-$sql = "INSERT INTO wishlist (user_id, book_id) VALUES (?, ?)";
-if ($stmt = mysqli_prepare($conn, $sql)) {
-    mysqli_stmt_bind_param($stmt, "ii", $_SESSION['user_id'], $book_id);
-    if (mysqli_stmt_execute($stmt)) {
-        echo json_encode(['success' => true, 'message' => 'Book added to wishlist']);
+        // Remove from wishlist
+        $sql = "DELETE FROM wishlist WHERE user_id = ? AND book_id = ?";
+        if ($stmt = mysqli_prepare($conn, $sql)) {
+            mysqli_stmt_bind_param($stmt, "ii", $_SESSION['user_id'], $book_id);
+            if (mysqli_stmt_execute($stmt)) {
+                echo json_encode(['success' => true, 'action' => 'removed', 'message' => 'Book removed from wishlist']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error removing book from wishlist']);
+            }
+        }
     } else {
-        echo json_encode(['success' => false, 'message' => 'Error adding book to wishlist']);
+        // Add to wishlist
+        $sql = "INSERT INTO wishlist (user_id, book_id) VALUES (?, ?)";
+        if ($stmt = mysqli_prepare($conn, $sql)) {
+            mysqli_stmt_bind_param($stmt, "ii", $_SESSION['user_id'], $book_id);
+            if (mysqli_stmt_execute($stmt)) {
+                echo json_encode(['success' => true, 'action' => 'added', 'message' => 'Book added to wishlist']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error adding book to wishlist']);
+            }
+        }
     }
 }
 ?> 

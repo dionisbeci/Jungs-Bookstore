@@ -3,6 +3,20 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('bestSellers')) {
         loadBestSellers();
     }
+
+    // Add event delegation for wishlist buttons
+    document.addEventListener('click', function(e) {
+        // Check if the click was on the button or the heart icon
+        const wishlistBtn = e.target.closest('.wishlist-btn');
+        if (wishlistBtn) {
+            e.preventDefault(); // Prevent any default button behavior
+            const bookId = wishlistBtn.getAttribute('data-book-id');
+            console.log('Wishlist button clicked, bookId:', bookId);
+            if (bookId) {
+                addToWishlist(bookId);
+            }
+        }
+    });
 });
 
 // Function to load best sellers
@@ -36,8 +50,10 @@ function createBookCard(book) {
                 <p class="card-text">By ${book.author}</p>
                 <p class="card-text">$${book.price}</p>
                 <button onclick="addToCart(${book.id})" class="btn btn-primary">Add to Cart</button>
-                ${isLoggedIn ? `<button onclick="addToWishlist(${book.id})" class="btn btn-outline-secondary">
-                    <i class="fas fa-heart"></i>
+                ${isLoggedIn ? `<button onclick="addToWishlist(${book.id})" 
+                    class="btn btn-outline-secondary wishlist-btn" 
+                    data-book-id="${book.id}">
+                    <i class="fas fa-heart ${book.in_wishlist ? 'text-danger' : ''}"></i>
                 </button>` : ''}
             </div>
         </div>
@@ -74,6 +90,25 @@ function addToCart(bookId) {
 
 // Add to wishlist functionality
 function addToWishlist(bookId) {
+    console.log('addToWishlist called with bookId:', bookId);
+    
+    // Find the wishlist button for this book
+    const wishlistBtn = document.querySelector(`.wishlist-btn[data-book-id="${bookId}"]`);
+    if (!wishlistBtn) {
+        console.log('Wishlist button not found');
+        return;
+    }
+
+    const heartIcon = wishlistBtn.querySelector('i.fa-heart');
+    if (!heartIcon) {
+        console.log('Heart icon not found');
+        return;
+    }
+
+    // Optimistically update the UI
+    heartIcon.classList.toggle('text-danger');
+
+    console.log('Sending request to add_to_wishlist.php');
     fetch('api/add_to_wishlist.php', {
         method: 'POST',
         headers: {
@@ -81,15 +116,36 @@ function addToWishlist(bookId) {
         },
         body: JSON.stringify({ book_id: bookId })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response received:', response);
+        return response.json();
+    })
     .then(data => {
+        console.log('Data received:', data);
         if (data.success) {
-            alert('Book added to wishlist successfully!');
+            // Show a subtle notification
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+            notification.style.zIndex = '1000';
+            notification.textContent = data.message;
+            document.body.appendChild(notification);
+            
+            // Remove notification after 2 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 2000);
         } else {
-            alert(data.message || 'Error adding book to wishlist');
+            // Revert the heart color if there was an error
+            heartIcon.classList.toggle('text-danger');
+            alert(data.message || 'Error updating wishlist');
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error in wishlist request:', error);
+        // Revert the heart color if there was an error
+        heartIcon.classList.toggle('text-danger');
+        alert('Error updating wishlist');
+    });
 }
 
 // Update cart count in navigation

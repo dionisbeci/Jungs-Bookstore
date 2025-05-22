@@ -39,6 +39,20 @@ if ($category_id > 0 && !empty($search)) {
 mysqli_stmt_execute($stmt);
 $books = mysqli_stmt_get_result($stmt);
 
+// Get wishlist status for each book if user is logged in
+$wishlist_books = array();
+if (isset($_SESSION['user_id'])) {
+    $sql = "SELECT book_id FROM wishlist WHERE user_id = ?";
+    if ($stmt = mysqli_prepare($conn, $sql)) {
+        mysqli_stmt_bind_param($stmt, "i", $_SESSION['user_id']);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        while ($row = mysqli_fetch_assoc($result)) {
+            $wishlist_books[] = $row['book_id'];
+        }
+    }
+}
+
 // Get all categories for filter
 $sql = "SELECT * FROM categories ORDER BY name";
 $categories = mysqli_query($conn, $sql);
@@ -123,8 +137,9 @@ $categories = mysqli_query($conn, $sql);
                                                 Add to Cart
                                             </button>
                                             <?php if (isset($_SESSION['user_id'])): ?>
-                                                <button onclick="addToWishlist(<?php echo $book['id']; ?>)" class="btn btn-outline-secondary">
-                                                    <i class="fas fa-heart"></i>
+                                                <button class="btn btn-outline-secondary wishlist-btn" 
+                                                        data-book-id="<?php echo $book['id']; ?>">
+                                                    <i class="fas fa-heart <?php echo in_array($book['id'], $wishlist_books) ? 'text-danger' : ''; ?>"></i>
                                                 </button>
                                             <?php endif; ?>
                                         <?php else: ?>

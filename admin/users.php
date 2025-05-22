@@ -22,41 +22,81 @@ if (isset($_POST['delete_user'])) {
     if ($user_id == $_SESSION['user_id']) {
         $error = "You cannot delete your own account.";
     } else {
-        // Check if user has orders
-        $sql = "SELECT COUNT(*) as count FROM orders WHERE user_id = ?";
-        if ($stmt = mysqli_prepare($conn, $sql)) {
+        // Start transaction
+        mysqli_begin_transaction($conn);
+        
+        try {
+            // Delete user's wishlist items
+            $sql = "DELETE FROM wishlist WHERE user_id = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            if (!$stmt) {
+                throw new Exception("Error preparing wishlist deletion: " . mysqli_error($conn));
+            }
             mysqli_stmt_bind_param($stmt, "i", $user_id);
-            mysqli_stmt_execute($stmt);
-            $result = mysqli_stmt_get_result($stmt);
-            $row = mysqli_fetch_assoc($result);
+            if (!mysqli_stmt_execute($stmt)) {
+                throw new Exception("Error executing wishlist deletion: " . mysqli_stmt_error($stmt));
+            }
             
-            if ($row['count'] > 0) {
-                $error = "Cannot delete user. They have existing orders.";
-            } else {
-                // Delete user's profile picture if exists
-                $sql = "SELECT profile_picture FROM users WHERE id = ?";
-                if ($stmt = mysqli_prepare($conn, $sql)) {
-                    mysqli_stmt_bind_param($stmt, "i", $user_id);
-                    mysqli_stmt_execute($stmt);
-                    $result = mysqli_stmt_get_result($stmt);
-                    $user = mysqli_fetch_assoc($result);
-                    
-                    if ($user['profile_picture'] && file_exists('../' . $user['profile_picture'])) {
-                        unlink('../' . $user['profile_picture']);
-                    }
-                }
+            // Delete user's order items
+            $sql = "DELETE oi FROM order_items oi 
+                    INNER JOIN orders o ON oi.order_id = o.id 
+                    WHERE o.user_id = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            if (!$stmt) {
+                throw new Exception("Error preparing order items deletion: " . mysqli_error($conn));
+            }
+            mysqli_stmt_bind_param($stmt, "i", $user_id);
+            if (!mysqli_stmt_execute($stmt)) {
+                throw new Exception("Error executing order items deletion: " . mysqli_stmt_error($stmt));
+            }
+            
+            // Delete user's orders
+            $sql = "DELETE FROM orders WHERE user_id = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            if (!$stmt) {
+                throw new Exception("Error preparing orders deletion: " . mysqli_error($conn));
+            }
+            mysqli_stmt_bind_param($stmt, "i", $user_id);
+            if (!mysqli_stmt_execute($stmt)) {
+                throw new Exception("Error executing orders deletion: " . mysqli_stmt_error($stmt));
+            }
+            
+            // Delete user's profile picture if exists
+            $sql = "SELECT profile_picture FROM users WHERE id = ?";
+            if ($stmt = mysqli_prepare($conn, $sql)) {
+                mysqli_stmt_bind_param($stmt, "i", $user_id);
+                mysqli_stmt_execute($stmt);
+                $result = mysqli_stmt_get_result($stmt);
+                $user = mysqli_fetch_assoc($result);
                 
-                // Delete the user
-                $sql = "DELETE FROM users WHERE id = ?";
-                if ($stmt = mysqli_prepare($conn, $sql)) {
-                    mysqli_stmt_bind_param($stmt, "i", $user_id);
-                    if (mysqli_stmt_execute($stmt)) {
-                        $success = "User deleted successfully.";
-                    } else {
-                        $error = "Error deleting user.";
-                    }
+                if ($user && $user['profile_picture'] && file_exists('../' . $user['profile_picture'])) {
+                    unlink('../' . $user['profile_picture']);
                 }
             }
+            
+            // Finally, delete the user
+            $sql = "DELETE FROM users WHERE id = ?";
+            $stmt = mysqli_prepare($conn, $sql);
+            if (!$stmt) {
+                throw new Exception("Error preparing user deletion: " . mysqli_error($conn));
+            }
+            mysqli_stmt_bind_param($stmt, "i", $user_id);
+            if (!mysqli_stmt_execute($stmt)) {
+                throw new Exception("Error executing user deletion: " . mysqli_stmt_error($stmt));
+            }
+            
+            // Commit transaction
+            if (!mysqli_commit($conn)) {
+                throw new Exception("Error committing transaction: " . mysqli_error($conn));
+            }
+            
+            $success = "User and all associated data deleted successfully.";
+            
+        } catch (Exception $e) {
+            // Rollback transaction on error
+            mysqli_rollback($conn);
+            $error = "Error deleting user: " . $e->getMessage();
+            error_log("User deletion error: " . $e->getMessage());
         }
     }
 }
