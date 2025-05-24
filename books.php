@@ -19,7 +19,7 @@ if ($category_id > 0) {
 
 // Add search condition if search query exists
 if (!empty($search)) {
-    $search = "%$search%";
+    $search_term = '%' . str_replace(['%', '_'], ['\%', '\_'], $search) . '%';
     $sql .= " AND (b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)";
 }
 
@@ -29,11 +29,11 @@ $stmt = mysqli_prepare($conn, $sql);
 
 // Bind parameters
 if ($category_id > 0 && !empty($search)) {
-    mysqli_stmt_bind_param($stmt, "isss", $category_id, $search, $search, $search);
+    mysqli_stmt_bind_param($stmt, "isss", $category_id, $search_term, $search_term, $search_term);
 } elseif ($category_id > 0) {
     mysqli_stmt_bind_param($stmt, "i", $category_id);
 } elseif (!empty($search)) {
-    mysqli_stmt_bind_param($stmt, "sss", $search, $search, $search);
+    mysqli_stmt_bind_param($stmt, "sss", $search_term, $search_term, $search_term);
 }
 
 mysqli_stmt_execute($stmt);

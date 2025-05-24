@@ -101,148 +101,176 @@ if (isset($_POST['delete_user'])) {
     }
 }
 
-// Handle user type update
-if (isset($_POST['update_user_type'])) {
+// Handle user update
+if (isset($_POST['update_user'])) {
     $user_id = $_POST['user_id'];
     $user_type = $_POST['user_type'];
+    $password = trim($_POST['password']);
     
     // Don't allow changing own type
     if ($user_id == $_SESSION['user_id']) {
         $error = "You cannot change your own user type.";
     } else {
-        $sql = "UPDATE users SET user_type = ? WHERE id = ?";
-        if ($stmt = mysqli_prepare($conn, $sql)) {
-            mysqli_stmt_bind_param($stmt, "si", $user_type, $user_id);
-            if (mysqli_stmt_execute($stmt)) {
-                $success = "User type updated successfully.";
-            } else {
-                $error = "Error updating user type.";
+        if (!empty($password)) {
+            // Update with new password
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            $sql = "UPDATE users SET user_type = ?, password = ? WHERE id = ?";
+            if ($stmt = mysqli_prepare($conn, $sql)) {
+                mysqli_stmt_bind_param($stmt, "ssi", $user_type, $hashed_password, $user_id);
             }
+        } else {
+            // Update only user type
+            $sql = "UPDATE users SET user_type = ? WHERE id = ?";
+            if ($stmt = mysqli_prepare($conn, $sql)) {
+                mysqli_stmt_bind_param($stmt, "si", $user_type, $user_id);
+            }
+        }
+        
+        if (isset($stmt) && mysqli_stmt_execute($stmt)) {
+            $success = "User updated successfully.";
+        } else {
+            $error = "Error updating user.";
         }
     }
 }
 
-// Get all users except current admin
-$sql = "SELECT * FROM users WHERE id != ? ORDER BY username";
-if ($stmt = mysqli_prepare($conn, $sql)) {
-    mysqli_stmt_bind_param($stmt, "i", $_SESSION['user_id']);
-    mysqli_stmt_execute($stmt);
-    $users = mysqli_stmt_get_result($stmt);
-}
+// Get all users
+$sql = "SELECT * FROM users ORDER BY id DESC";
+$users = mysqli_query($conn, $sql);
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Users - Jungs Bookstore</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="dashboard.php">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="books.php">
-                                <i class="fas fa-book"></i> Manage Books
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active text-white" href="users.php">
-                                <i class="fas fa-users"></i> Manage Users
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="orders.php">
-                                <i class="fas fa-shopping-cart"></i> Manage Orders
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="categories.php">
-                                <i class="fas fa-tags"></i> Manage Categories
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+<div class="container-fluid">
+    <div class="row">
+        <main class="col-12 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Manage Users</h1>
+            </div>
 
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Manage Users</h1>
-                </div>
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger"><?php echo $error; ?></div>
+            <?php endif; ?>
 
-                <?php if (!empty($error)): ?>
-                    <div class="alert alert-danger"><?php echo $error; ?></div>
-                <?php endif; ?>
+            <?php if (!empty($success)): ?>
+                <div class="alert alert-success"><?php echo $success; ?></div>
+            <?php endif; ?>
 
-                <?php if (!empty($success)): ?>
-                    <div class="alert alert-success"><?php echo $success; ?></div>
-                <?php endif; ?>
-
-                <!-- Users Table -->
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Profile</th>
-                                <th>Username</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>User Type</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while ($user = mysqli_fetch_assoc($users)): ?>
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
                                 <tr>
-                                    <td>
-                                        <img src="<?php echo $user['profile_picture'] ? '../' . $user['profile_picture'] : '../assets/images/default-profile.jpg'; ?>" 
-                                             alt="<?php echo htmlspecialchars($user['username']); ?>"
-                                             class="rounded-circle"
-                                             style="width: 40px; height: 40px; object-fit: cover;">
-                                    </td>
-                                    <td><?php echo htmlspecialchars($user['username']); ?></td>
-                                    <td><?php echo htmlspecialchars($user['name'] . ' ' . $user['surname']); ?></td>
-                                    <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                    <td>
-                                        <form action="" method="post" class="d-inline">
-                                            <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                            <select name="user_type" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
-                                                <option value="user" <?php echo $user['user_type'] === 'user' ? 'selected' : ''; ?>>User</option>
-                                                <option value="admin" <?php echo $user['user_type'] === 'admin' ? 'selected' : ''; ?>>Admin</option>
-                                            </select>
-                                            <input type="hidden" name="update_user_type" value="1">
-                                        </form>
-                                    </td>
-                                    <td>
-                                        <form action="" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
-                                            <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                            <button type="submit" name="delete_user" class="btn btn-sm btn-danger">
-                                                <i class="fas fa-trash"></i> Delete
-                                            </button>
-                                        </form>
-                                    </td>
+                                    <th>ID</th>
+                                    <th>Profile</th>
+                                    <th>Username</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Type</th>
+                                    <th>Actions</th>
                                 </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <?php while ($user = mysqli_fetch_assoc($users)): ?>
+                                    <tr>
+                                        <td><?php echo $user['id']; ?></td>
+                                        <td>
+                                            <img src="<?php echo $user['profile_picture'] ? '../' . $user['profile_picture'] : '../assets/images/no-image.jpg'; ?>" 
+                                                 alt="<?php echo htmlspecialchars($user['username']); ?>"
+                                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
+                                        </td>
+                                        <td><?php echo htmlspecialchars($user['username']); ?></td>
+                                        <td><?php echo htmlspecialchars($user['name'] . ' ' . $user['surname']); ?></td>
+                                        <td><?php echo htmlspecialchars($user['email']); ?></td>
+                                        <td><?php echo ucfirst($user['user_type']); ?></td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary" 
+                                                    onclick="editUser(<?php echo htmlspecialchars(json_encode($user)); ?>)">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            <?php if ($user['id'] !== $_SESSION['user_id']): ?>
+                                                <button type="button" class="btn btn-sm btn-danger" 
+                                                        onclick="deleteUser(<?php echo $user['id']; ?>)">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </main>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="" method="post">
+                <input type="hidden" name="update_user" value="1">
+                <input type="hidden" id="edit_user_id" name="user_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="edit_username" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="edit_password" name="password">
+                        <small class="text-muted">Leave empty to keep current password</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_user_type" class="form-label">User Type</label>
+                        <select class="form-select" id="edit_user_type" name="user_type" required>
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/main.js"></script>
+<script>
+function editUser(user) {
+    document.getElementById('edit_user_id').value = user.id;
+    document.getElementById('edit_username').value = user.username;
+    document.getElementById('edit_user_type').value = user.user_type;
+    
+    // Disable user type selection for own account
+    const userTypeSelect = document.getElementById('edit_user_type');
+    userTypeSelect.disabled = user.id === <?php echo $_SESSION['user_id']; ?>;
+    
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+
+function deleteUser(userId) {
+    if (confirm('Are you sure you want to delete this user?')) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.innerHTML = `
+            <input type="hidden" name="delete_user" value="1">
+            <input type="hidden" name="user_id" value="${userId}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/main.js"></script>
 </body>
 </html> 

@@ -46,49 +46,58 @@ $best_sellers = mysqli_query($conn, $sql);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Jungs Bookstore</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .quick-access-btn {
+            transition: transform 0.2s;
+            height: 100%;
+        }
+        .quick-access-btn:hover {
+            transform: translateY(-5px);
+        }
+        .quick-access-btn i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+    </style>
 </head>
 <body>
     <!-- Main content -->
     <div class="container-fluid">
         <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link active text-white" href="dashboard.php">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="books.php">
-                                <i class="fas fa-book"></i> Manage Books
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="users.php">
-                                <i class="fas fa-users"></i> Manage Users
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="orders.php">
-                                <i class="fas fa-shopping-cart"></i> Manage Orders
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="categories.php">
-                                <i class="fas fa-tags"></i> Manage Categories
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-
             <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <main class="col-12 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Dashboard</h1>
+                </div>
+
+                <!-- Quick Access Buttons -->
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-3">
+                        <a href="books.php" class="btn btn-primary w-100 quick-access-btn d-flex flex-column align-items-center justify-content-center p-4">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add New Book</span>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="categories.php" class="btn btn-success w-100 quick-access-btn d-flex flex-column align-items-center justify-content-center p-4">
+                            <i class="fas fa-folder-plus"></i>
+                            <span>Add Category</span>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="users.php" class="btn btn-info w-100 quick-access-btn d-flex flex-column align-items-center justify-content-center p-4">
+                            <i class="fas fa-user-cog"></i>
+                            <span>Manage Users</span>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="orders.php" class="btn btn-warning w-100 quick-access-btn d-flex flex-column align-items-center justify-content-center p-4">
+                            <i class="fas fa-shopping-cart"></i>
+                            <span>Manage Orders</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Statistics Cards -->
@@ -168,9 +177,9 @@ $best_sellers = mysqli_query($conn, $sql);
                                             </td>
                                             <td><?php echo date('M d, Y', strtotime($order['order_date'])); ?></td>
                                             <td>
-                                                <a href="view_order.php?id=<?php echo $order['id']; ?>" class="btn btn-sm btn-primary">
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="viewOrder(<?php echo $order['id']; ?>)">
                                                     View
-                                                </a>
+                                                </button>
                                             </td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -214,8 +223,42 @@ $best_sellers = mysqli_query($conn, $sql);
         </div>
     </div>
 
+    <!-- View Order Modal -->
+    <div class="modal fade" id="viewOrderModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Order Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="orderDetails">
+                    <!-- Order details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="../assets/js/main.js"></script>
+    <script>
+    function viewOrder(orderId) {
+        // Show loading state
+        document.getElementById('orderDetails').innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        
+        // Show the modal
+        new bootstrap.Modal(document.getElementById('viewOrderModal')).show();
+        
+        // Fetch order details
+        fetch('get_order_details.php?id=' + orderId)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('orderDetails').innerHTML = html;
+            })
+            .catch(error => {
+                document.getElementById('orderDetails').innerHTML = '<div class="alert alert-danger">Error loading order details.</div>';
+            });
+    }
+    </script>
 </body>
 </html> 

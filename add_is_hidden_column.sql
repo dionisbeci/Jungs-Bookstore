@@ -1,1 +1,0 @@
-ALTER TABLE jungs_bookstore.order_items ADD COLUMN is_hidden TINYINT(1) DEFAULT 0; 

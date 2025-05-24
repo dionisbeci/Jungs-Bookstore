@@ -11,113 +11,164 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["user_type"] !== "admin") {
     exit;
 }
 
+$error = '';
+$success = '';
+
 // Handle book deletion
 if (isset($_POST['delete_book'])) {
     $book_id = $_POST['book_id'];
     
-    // Check if book has associated order items
-    $check_sql = "SELECT COUNT(*) as count FROM order_items WHERE book_id = ?";
-    if ($check_stmt = mysqli_prepare($conn, $check_sql)) {
-        mysqli_stmt_bind_param($check_stmt, "i", $book_id);
-        mysqli_stmt_execute($check_stmt);
-        $result = mysqli_stmt_get_result($check_stmt);
+    // Check if book has been ordered
+    $sql = "SELECT COUNT(*) as order_count FROM order_items WHERE book_id = ?";
+    if ($stmt = mysqli_prepare($conn, $sql)) {
+        mysqli_stmt_bind_param($stmt, "i", $book_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
         $row = mysqli_fetch_assoc($result);
         
-        if ($row['count'] > 0) {
-            echo '<div class="alert alert-danger">Cannot delete this book because it has been ordered by customers. Please archive it instead.</div>';
+        if ($row['order_count'] > 0) {
+            $error = "Cannot delete this book because it has been ordered. You can set the stock to 0 instead.";
         } else {
-            // Delete the book if no order items exist
-            $sql = "DELETE FROM books WHERE id = ?";
+            // Get book image before deletion
+            $sql = "SELECT cover_image FROM books WHERE id = ?";
             if ($stmt = mysqli_prepare($conn, $sql)) {
                 mysqli_stmt_bind_param($stmt, "i", $book_id);
-                if (mysqli_stmt_execute($stmt)) {
-                    echo '<div class="alert alert-success">Book deleted successfully.</div>';
-                } else {
-                    echo '<div class="alert alert-danger">Error deleting book.</div>';
+                mysqli_stmt_execute($stmt);
+                $result = mysqli_stmt_get_result($stmt);
+                $book = mysqli_fetch_assoc($result);
+                
+                // Delete the book
+                $sql = "DELETE FROM books WHERE id = ?";
+                if ($stmt = mysqli_prepare($conn, $sql)) {
+                    mysqli_stmt_bind_param($stmt, "i", $book_id);
+                    if (mysqli_stmt_execute($stmt)) {
+                        // Delete the image file if it exists
+                        if ($book && $book['cover_image'] && file_exists('../' . $book['cover_image'])) {
+                            unlink('../' . $book['cover_image']);
+                        }
+                        $success = "Book deleted successfully.";
+                    } else {
+                        $error = "Error deleting book.";
+                    }
                 }
             }
         }
     }
 }
 
-// Get all books with their categories
+// Handle book update
+if (isset($_POST['update_book'])) {
+    $book_id = $_POST['book_id'];
+    $title = trim($_POST['title']);
+    $author = trim($_POST['author']);
+    $price = floatval($_POST['price']);
+    $stock = intval($_POST['stock']);
+    $category_id = !empty($_POST['category_id']) ? $_POST['category_id'] : null;
+    
+    if (empty($title) || empty($author) || $price <= 0 || $stock < 0) {
+        $error = "Please fill in all required fields correctly.";
+    } else {
+        // Handle file upload
+        $cover_image = null;
+        if (isset($_FILES['cover']) && $_FILES['cover']['error'] == 0) {
+            $allowed = array('jpg', 'jpeg', 'png', 'gif');
+            $filename = $_FILES['cover']['name'];
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            
+            if (in_array($ext, $allowed)) {
+                $upload_dir = '../uploads/covers/';
+                
+                // Create directory if it doesn't exist
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                $new_filename = uniqid() . '.' . $ext;
+                $upload_path = $upload_dir . $new_filename;
+                
+                if (move_uploaded_file($_FILES['cover']['tmp_name'], $upload_path)) {
+                    // Get old cover image path
+                    $sql = "SELECT cover_image FROM books WHERE id = ?";
+                    if ($stmt = mysqli_prepare($conn, $sql)) {
+                        mysqli_stmt_bind_param($stmt, "i", $book_id);
+                        mysqli_stmt_execute($stmt);
+                        $result = mysqli_stmt_get_result($stmt);
+                        $book = mysqli_fetch_assoc($result);
+                        
+                        // Delete old cover image if it exists
+                        if ($book && $book['cover_image'] && file_exists('../' . $book['cover_image'])) {
+                            unlink('../' . $book['cover_image']);
+                        }
+                    }
+                    
+                    $cover_image = 'uploads/covers/' . $new_filename;
+                }
+            }
+        }
+        
+        // Update book
+        if ($cover_image) {
+            $sql = "UPDATE books SET title = ?, author = ?, price = ?, stock = ?, category_id = ?, cover_image = ? WHERE id = ?";
+            if ($stmt = mysqli_prepare($conn, $sql)) {
+                mysqli_stmt_bind_param($stmt, "ssdiisi", $title, $author, $price, $stock, $category_id, $cover_image, $book_id);
+            }
+        } else {
+            $sql = "UPDATE books SET title = ?, author = ?, price = ?, stock = ?, category_id = ? WHERE id = ?";
+            if ($stmt = mysqli_prepare($conn, $sql)) {
+                mysqli_stmt_bind_param($stmt, "ssdiii", $title, $author, $price, $stock, $category_id, $book_id);
+            }
+        }
+        
+        if (isset($stmt) && mysqli_stmt_execute($stmt)) {
+            $success = "Book updated successfully.";
+        } else {
+            $error = "Error updating book.";
+        }
+    }
+}
+
+// Get all books with category names
 $sql = "SELECT b.*, c.name as category_name 
         FROM books b 
         LEFT JOIN categories c ON b.category_id = c.id 
-        ORDER BY b.title";
+        ORDER BY b.id DESC";
 $books = mysqli_query($conn, $sql);
 
-// Get all categories for the add/edit form
+// Get all categories for the dropdown
 $sql = "SELECT * FROM categories ORDER BY name";
 $categories = mysqli_query($conn, $sql);
 $categories_list = mysqli_fetch_all($categories, MYSQLI_ASSOC);
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Books - Jungs Bookstore</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
-</head>
-<body>
     <div class="container-fluid">
         <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="dashboard.php">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active text-white" href="books.php">
-                                <i class="fas fa-book"></i> Manage Books
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="users.php">
-                                <i class="fas fa-users"></i> Manage Users
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="orders.php">
-                                <i class="fas fa-shopping-cart"></i> Manage Orders
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="categories.php">
-                                <i class="fas fa-tags"></i> Manage Categories
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <main class="col-12 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Manage Books</h1>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBookModal">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBookModal">
                         <i class="fas fa-plus"></i> Add New Book
                     </button>
                 </div>
 
-                <!-- Books Table -->
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger"><?php echo $error; ?></div>
+            <?php endif; ?>
+
+            <?php if (!empty($success)): ?>
+                <div class="alert alert-success"><?php echo $success; ?></div>
+            <?php endif; ?>
+
+            <div class="card">
+                <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>Cover</th>
-                                <th>ISBN</th>
+                                    <th>ID</th>
+                                    <th>Image</th>
                                 <th>Title</th>
                                 <th>Author</th>
                                 <th>Category</th>
-                                <th>Pages</th>
                                 <th>Price</th>
                                 <th>Stock</th>
                                 <th>Actions</th>
@@ -126,34 +177,33 @@ $categories_list = mysqli_fetch_all($categories, MYSQLI_ASSOC);
                         <tbody>
                             <?php while ($book = mysqli_fetch_assoc($books)): ?>
                                 <tr>
+                                        <td><?php echo $book['id']; ?></td>
                                     <td>
-                                        <img src="<?php echo $book['cover_image'] ? '../' . $book['cover_image'] : '../assets/images/default-book-cover.jpg'; ?>" 
+                                            <img src="<?php echo $book['cover_image'] ? '../' . $book['cover_image'] : '../assets/images/no-image.jpg'; ?>" 
                                              alt="<?php echo htmlspecialchars($book['title']); ?>"
-                                             class="img-thumbnail"
-                                             style="width: 50px;">
+                                                 style="width: 50px; height: 50px; object-fit: cover;">
                                     </td>
-                                    <td><?php echo htmlspecialchars($book['isbn']); ?></td>
                                     <td><?php echo htmlspecialchars($book['title']); ?></td>
                                     <td><?php echo htmlspecialchars($book['author']); ?></td>
-                                    <td><?php echo htmlspecialchars($book['category_name']); ?></td>
-                                    <td><?php echo $book['pages']; ?></td>
+                                        <td><?php echo htmlspecialchars($book['category_name'] ?? 'Uncategorized'); ?></td>
                                     <td>$<?php echo number_format($book['price'], 2); ?></td>
                                     <td><?php echo $book['stock']; ?></td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary" onclick="editBook(<?php echo $book['id']; ?>)">
+                                            <button type="button" class="btn btn-sm btn-primary" 
+                                                    onclick="editBook(<?php echo htmlspecialchars(json_encode($book)); ?>)">
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
-                                        <form action="" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this book?');">
-                                            <input type="hidden" name="book_id" value="<?php echo $book['id']; ?>">
-                                            <button type="submit" name="delete_book" class="btn btn-sm btn-danger">
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    onclick="deleteBook(<?php echo $book['id']; ?>)">
                                                 <i class="fas fa-trash"></i> Delete
                                             </button>
-                                        </form>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
                         </tbody>
                     </table>
+                    </div>
+                </div>
                 </div>
             </main>
         </div>
@@ -161,7 +211,7 @@ $categories_list = mysqli_fetch_all($categories, MYSQLI_ASSOC);
 
     <!-- Add Book Modal -->
     <div class="modal fade" id="addBookModal" tabindex="-1">
-        <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Add New Book</h5>
@@ -169,6 +219,8 @@ $categories_list = mysqli_fetch_all($categories, MYSQLI_ASSOC);
                 </div>
                 <form action="add_book.php" method="post" enctype="multipart/form-data">
                     <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
                         <div class="mb-3">
                             <label for="title" class="form-label">Title</label>
                             <input type="text" class="form-control" id="title" name="title" required>
@@ -178,8 +230,8 @@ $categories_list = mysqli_fetch_all($categories, MYSQLI_ASSOC);
                             <input type="text" class="form-control" id="author" name="author" required>
                         </div>
                         <div class="mb-3">
-                            <label for="category" class="form-label">Category</label>
-                            <select class="form-control" id="category" name="category_id" required>
+                                <label for="category_id" class="form-label">Category</label>
+                                <select class="form-select" id="category_id" name="category_id">
                                 <option value="">Select Category</option>
                                 <?php foreach ($categories_list as $category): ?>
                                     <option value="<?php echo $category['id']; ?>">
@@ -190,36 +242,124 @@ $categories_list = mysqli_fetch_all($categories, MYSQLI_ASSOC);
                         </div>
                         <div class="mb-3">
                             <label for="pages" class="form-label">Number of Pages</label>
-                            <input type="number" class="form-control" id="pages" name="pages" required>
+                                <input type="number" class="form-control" id="pages" name="pages" min="1" required>
+                            </div>
                         </div>
+                        <div class="col-md-6">
                         <div class="mb-3">
                             <label for="price" class="form-label">Price</label>
-                            <input type="number" class="form-control" id="price" name="price" step="0.01" required>
+                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" required>
                         </div>
                         <div class="mb-3">
                             <label for="stock" class="form-label">Stock</label>
-                            <input type="number" class="form-control" id="stock" name="stock" required>
+                                <input type="number" class="form-control" id="stock" name="stock" min="0" required>
                         </div>
                         <div class="mb-3">
-                            <label for="cover" class="form-label">Cover Image</label>
+                                <label for="cover" class="form-label">Book Cover</label>
                             <input type="file" class="form-control" id="cover" name="cover" accept="image/*">
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Add Book</button>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Book</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/main.js"></script>
+<!-- Edit Book Modal -->
+<div class="modal fade" id="editBookModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="update_book" value="1">
+                <input type="hidden" id="edit_book_id" name="book_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_title" class="form-label">Title</label>
+                                <input type="text" class="form-control" id="edit_title" name="title" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_author" class="form-label">Author</label>
+                                <input type="text" class="form-control" id="edit_author" name="author" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_category_id" class="form-label">Category</label>
+                                <select class="form-select" id="edit_category_id" name="category_id">
+                                    <option value="">Select Category</option>
+                                    <?php foreach ($categories_list as $category): ?>
+                                        <option value="<?php echo $category['id']; ?>">
+                                            <?php echo htmlspecialchars($category['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_price" class="form-label">Price</label>
+                                <input type="number" class="form-control" id="edit_price" name="price" step="0.01" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_stock" class="form-label">Stock</label>
+                                <input type="number" class="form-control" id="edit_stock" name="stock" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_cover" class="form-label">Book Cover</label>
+                                <input type="file" class="form-control" id="edit_cover" name="cover" accept="image/*">
+                                <small class="text-muted">Leave empty to keep current cover</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
     <script>
-        function editBook(bookId) {
-            window.location.href = 'edit_book.php?id=' + bookId;
-        }
+function editBook(book) {
+    document.getElementById('edit_book_id').value = book.id;
+    document.getElementById('edit_title').value = book.title;
+    document.getElementById('edit_author').value = book.author;
+    document.getElementById('edit_category_id').value = book.category_id || '';
+    document.getElementById('edit_price').value = book.price;
+    document.getElementById('edit_stock').value = book.stock;
+    new bootstrap.Modal(document.getElementById('editBookModal')).show();
+}
+
+function deleteBook(bookId) {
+    if (confirm('WARNING: This will permanently delete the book and all its related records (orders, wishlist items, etc.). This action cannot be undone. Are you sure you want to proceed?')) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = 'delete_book.php';
+        form.innerHTML = `
+            <input type="hidden" name="book_id" value="${bookId}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
     </script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/js/main.js"></script>
 </body>
 </html> 

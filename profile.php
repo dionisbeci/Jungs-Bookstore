@@ -170,12 +170,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile - Jungs Bookstore</title>
+    <title>Jungs Bookstore</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-    <?php include 'includes/header.php'; ?>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.php">Jungs Bookstore</a>
+            <div class="d-flex align-items-center">
+                <a class="nav-link text-light me-3" href="index.php">Home</a>
+                <span class="text-light">
+                    <i class="fas fa-user"></i> <?php echo htmlspecialchars($user['name'] . ' ' . $user['surname']); ?>
+                </span>
+            </div>
+        </div>
+    </nav>
 
     <div class="container mt-4">
         <div class="row">

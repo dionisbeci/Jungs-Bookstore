@@ -62,6 +62,27 @@ while ($item = mysqli_fetch_assoc($cart_items)) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+    .input-group {
+        width: 100%;
+        max-width: 200px;
+    }
+    .input-group .form-control {
+        border-right: none;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-color: #ced4da;
+    }
+    .input-group .btn {
+        border-left: none;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-color: #ced4da;
+    }
+    .input-group .btn:hover {
+        border-color: #ced4da;
+    }
+    </style>
 </head>
 <body>
     <?php include 'includes/header.php'; ?>

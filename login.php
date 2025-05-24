@@ -27,7 +27,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             $_SESSION["username"] = $username;
                             $_SESSION["user_type"] = $user_type;
                             
-                            header("location: index.php");
+                            if ($user_type === 'admin') {
+                                header("location: admin/dashboard.php");
+                            } else {
+                                header("location: index.php");
+                            }
                             exit;
                         } else {
                             $error = "Invalid username or password.";

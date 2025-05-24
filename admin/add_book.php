@@ -11,10 +11,17 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["user_type"] !== "admin") {
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $title = trim($_POST['title']);
     $author = trim($_POST['author']);
-    $category_id = $_POST['category_id'];
+    $category_id = !empty($_POST['category_id']) ? $_POST['category_id'] : null;
     $pages = $_POST['pages'];
     $price = $_POST['price'];
     $stock = $_POST['stock'];
+    
+    // Validate required fields
+    if (empty($title) || empty($author) || empty($pages) || empty($price) || empty($stock)) {
+        $_SESSION['error'] = "Please fill in all required fields.";
+        header("location: books.php");
+        exit;
+    }
     
     // Generate ISBN based on title and current timestamp
     $timestamp = time();
@@ -68,7 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     header("location: books.php");
                     exit;
                 } else {
-                    $_SESSION['error'] = "Something went wrong. Please try again later.";
+                    $_SESSION['error'] = "Error adding book: " . mysqli_error($conn);
                 }
             }
         }
