@@ -55,12 +55,28 @@ $featured_categories = mysqli_query($conn, $sql);
     <link rel="stylesheet" href="assets/css/style.css">
     <style>
         .hero-section {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('assets/images/library-bg.jpg');
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('uploads/images/Zhongshuge-Bookstore-X-Living.gif');
             background-size: cover;
             background-position: center;
+            background-repeat: no-repeat;
             color: white;
             padding: 100px 0;
             margin-bottom: 40px;
+            position: relative;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1;
+        }
+        .hero-section .container {
+            position: relative;
+            z-index: 2;
         }
         .book-card {
             transition: transform 0.3s ease;
