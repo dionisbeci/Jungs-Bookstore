@@ -59,34 +59,33 @@ Place the project in your web server's root (htdocs/)
 
 Access it at: http://localhost/Jungs-Bookstore/
 
-📁 Project Structure
+## 📁 Project Structure
 
 Jungs-Bookstore/
-├── api/               → Backend API routes
-├── assets/            → Frontend assets (CSS, JS, images)
-├── config/            → Database config files
-├── includes/          → Shared page components
-├── jungs_bookstore/   → Authentication & logic
-├── uploads/           → Book cover uploads
+├── api/ → Backend API routes
+├── assets/ → Frontend assets (CSS, JS, images)
+├── config/ → Database config files
+├── includes/ → Shared page components
+├── jungs_bookstore/ → Authentication & logic
+├── uploads/ → Book cover uploads
 ├── jungs_bookstore.sql → Full database dump
-├── *.php              → Main app pages (index, login, books, admin, etc.)
+├── *.php → Main app pages (index, login, books, admin, etc.)
 
-🔐 Admin Capabilities
--Add, edit, or remove books
+## 🔐 Admin Capabilities
 
--Admin-only sections accessible after login
+- Add, edit, or remove books  
+- Admin-only sections accessible after login  
+- All admin operations are integrated in the web app and do not require manual database edits or external tools
 
--All admin operations are integrated in the web app and do not require manual database edits or external tools.
+## 📄 License & Usage
 
-
-📄 License & Usage
-This project is intended strictly for educational demonstration purposes.
-You may view, test, and learn from it — but reuse in academic submissions or grading environments without permission is not allowed.
+This project is intended strictly for educational demonstration purposes.  
+You may view, test, and learn from it — but reuse in academic submissions or grading environments without permission is **not allowed**.  
 Please contact the author for licensing or collaboration requests.
 
+## 👤 Contact
 
-👤 Contact
-Dionis Beçi
-Epoka University – Web Technologies & Design
-GitHub: @dionisbeci
-E-mail: dionisbeci@gmail.com / dbeci23@epoka.edu.al
+**Dionis Beçi**  
+_Epoka University – Web Technologies & Design_  
+- GitHub: [@dionisbeci](https://github.com/dionisbeci)  
+- Email: [dionisbeci@gmail.com](mailto:dionisbeci@gmail.com) / [dbeci23@epoka.edu.al](mailto:dbeci23@epoka.edu.al)
