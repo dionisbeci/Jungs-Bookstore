@@ -61,6 +61,7 @@ Access it at: http://localhost/Jungs-Bookstore/
 
 ## 📁 Project Structure
 
+
 Jungs-Bookstore/
 ├── api/ → Backend API routes
 ├── assets/ → Frontend assets (CSS, JS, images)
@@ -70,6 +71,7 @@ Jungs-Bookstore/
 ├── uploads/ → Book cover uploads
 ├── jungs_bookstore.sql → Full database dump
 ├── *.php → Main app pages (index, login, books, admin, etc.)
+
 
 ## 🔐 Admin Capabilities
 
